@@ -55,7 +55,7 @@ class InheritanceRule(behavior.Rule):
     failure : callable
         If inheritance fails, define what to do. Takes a Person, returns bool.
     """
-    
+    #rule needs to be changed to a different variabule name (not an instance of Rule)
     def __init__(self,has_property,rule,failure):
         #make sure all are callable and take the right number of arguments
         for r in [has_property,rule,failure]:
@@ -136,15 +136,15 @@ def simple_inherit_sons(person,checkowner=True):
         if len(select) != 0:
             select.sort(reverse=True,key=lambda x:x.age)
             for son in select:
-                # If the son is not a house owner OR we don't care
-                if son.has_house.owner != son or checkowner == False :
+                # If the son is an owner of the house he lives in OR we don't care
+                if son not in son.has_house.get_owners() or checkowner == False :
                     #This works because if you inherit a house, you move into it
                     heir = son
                     #If the son lives in a different house, move his household
                     behavior.mobility.move_household_to_new_house(heir,person.has_house)
-                    for h in person.has_community.houses:
-                        if h.owner == person:
-                            h.owner = heir
+                    for h in person.has_community.has_world.houses:
+                        if person in h.get_owners():
+                            h.change_owner(person,heir)
                     return True
                 else:
                     pass #Try the next one
@@ -183,16 +183,16 @@ def simple_inherit_brothers_sons(person,checkowner=True):
                     #If the brother has children, check for the alive male children
                     select = [x for x in children if x.sex == male and x.lifestatus == alive]
                     if checkowner == True:
-                        select = [x for x in select if x.has_house.owner != x]
+                        select = [x for x in select if x not in x.has_house.get_owners()]
                     if len(select) > 1:
                         # If there is more than one alive male child, then take 
                         ## the second oldest (first must stay for brother's inheritance)
                         select.sort(reverse=True,key=lambda x:x.age)
                         heir = select[1]
                         behavior.mobility.move_family_to_new_house(heir,person.has_house)
-                        for h in person.has_community.houses:
-                            if h.owner == person:
-                                h.owner = heir
+                        for h in person.has_community.has_world.houses:
+                            if person in h.get_owners():
+                                h.change_owner(person, heir)
                         return True
                     #Otherwise, not enough children
                 # Otherwise, no children
@@ -334,8 +334,8 @@ def has_property_houses(person):
         Who to check for property
     """
     if isinstance(person,main.Person):
-        for h in person.has_community.houses:
-            if h.owner == person:
+        for h in person.has_community.has_world.houses:
+            if person in h.get_owners():
                 return True
         return False
     else:
@@ -570,10 +570,12 @@ def find_heirs_multiple_constructor(*args):
             elif isinstance(heirs,main.Person):
                 #Person, so add double brackets and then add
                 output += [[heirs]]
+            elif all([x == [] for x in heirs]):
+                pass
             elif type(heirs) == list and isinstance(heirs[0],main.Person):
                 #list of Persons, add brackets then 
                 output += [heirs]
-            elif type(heirs) == list and type(heirs[0]) == list and isinstance(heirs[0][0],main.Person):
+            elif type(heirs) == list and type(heirs[0]) == list and any([isinstance(y,main.Person) for x in heirs for y in x]):
                 #list of lists of person, just add
                 output += heirs
             else:
@@ -621,7 +623,7 @@ def limit_heirs_not_owners(heirs):
                 new_heirs.append(p)
     elif type(heirs[0]) == list:
         #This is a list of lists of people, so go through each and assess
-        if isinstance(heirs[0][0],main.Person) == False:
+        if any([isinstance(y,main.Person) for x in heirs for y in x]) == False:
             raise TypeError('heirs neither list of Persons or list of lists of Person')
         for l in heirs:
             new_sublist = []
@@ -663,7 +665,7 @@ def limit_heirs_by_age(heirs,age_of_majority):
             else:
                 new_heirs.append(p)
     elif type(heirs[0]) == list:
-        if isinstance(heirs[0][0],main.Person) == False:
+        if any([isinstance(y,main.Person) for x in heirs for y in x]) == False:
             raise TypeError('heirs neither list of Persons or list of lists of Person')
         #This is a list of lists of people, so go through each and assess
         for l in heirs:
@@ -759,8 +761,8 @@ def distribute_property_to_first_heir_and_move_household(person,heirs):
     #Now that the heir has been identified, transfer any property to their name
     transfer_happened = False
     for h in person.has_community.has_world.houses:
-        if h.owner == person:
-            h.owner = heir
+        if person in h.get_owners():
+            h.change_owner(person, heir)
             #old_house = heir.has_house
             behavior.mobility.move_household_to_new_house(heir,h)
             transfer_happened = True
@@ -775,16 +777,16 @@ def failed_inheritance_no_owner(person):
     person : Person
         The person whose property must be changed to none
     
-    Returns:
-    --------
+    Returns
+    -------
     bool
         Successful?
     """
     if isinstance(person,main.Person) == False:
         raise TypeError('person not a Person')
     transfer_happened = False
-    for h in person.has_community.houses:
-        if h.owner == person:
-            h.owner = None
+    for h in person.has_community.has_world.houses:
+        if person in h.get_owners():
+            h.remove_share(person)
             transfer_happened = True
     return transfer_happened

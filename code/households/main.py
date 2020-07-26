@@ -646,26 +646,27 @@ class AgeTable(object):
 # Mortality Crisis Implementation
 
 class MortalityCrisis(object):
-    """ A simulation-wide population crisis event with customizable start year, duration, and removal probabilities.
+    """ A simulation-wide death event with customizable start year, duration, and removal probabilities.
     
     When called, takes world as an argument and iterates through all community and household objects, 
-    deciding for each person object whether or not they will be removed from the simulation based on 
-    rates within plaguetab. Records removed people within list.
+    deciding for each person object whether or not they will be killed based on rates within plaguetab. 
+    Records dead people within a list.
     
     Parameters
     ----------
     startyear: int
-        Defines starting year of crisis.
+        Defines starting year of mortality crisis.
     duration: int
-        Defines lenth and subsequent ending year of crisis.
+        Defines length and subsequent ending year of mortality crisis.
     plaguetab: list of 3 households.AgeTable
-        List of agetables for determining probability of removal based on household size.
+        List of agetables for determining probability of death based on age household size.
         
     Attributes
     ----------
     killedbyplague: list
-        list of those killed by the mortality crisis over entire duration.
+        List of those killed by the mortality crisis over its entire duration.
     """
+    
     def __init__(self, startyear, duration, plaguetab):
         self.startyear = startyear
         self.duration = duration
@@ -677,7 +678,7 @@ class MortalityCrisis(object):
         self.killedbyplague = []
     
     def __call__(self, world):
-        """ Checks if the mortality crisis happens for a given year and appends removed to list.
+        """ Checks if the mortality crisis happens for a given year and appends those killed to list.
         
         Parameters
         ----------
@@ -700,14 +701,13 @@ class MortalityCrisis(object):
                     elif housepop > 10:
                         i = 2
                     else:
-                        #something has gone horribly wrong
                         raise ValueError('housepop is not a recognizeable value')
                     #loop through each person in this occupied house and check their rate
                     for person in house.people:
                         r = self.plaguetab[i].get_rate(person.sex, person.age)
                         if r >= rd.random():
                             person.__dies__()
-                            self.killedbyplague.append(person)          
+                            self.killedbyplague.append(person)
 #[p for p in terra.thedead if p not in plague.killedbyplague] #get all Persons not killed by plague
 
 
